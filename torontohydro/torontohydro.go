@@ -3,6 +3,7 @@ package torontohydro
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -35,6 +36,13 @@ type ElectricConsumption struct {
 	Time          time.Time `csv:"-"`
 }
 
+type Meter struct {
+	MeterNumber string `json:"meterNum"`
+	Id          string `json:"id"`
+	StartDate   string `json:"startDate"`
+	EndDate     string `json:"endDate"`
+}
+
 var client http.Client
 
 func Login(config helpers.Config) error {
@@ -45,6 +53,7 @@ func Login(config helpers.Config) error {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		log.Printf("Got error while creating cookie jar [%s]!", err.Error())
+		return err
 	}
 	client = http.Client{
 		Jar: jar,
@@ -57,7 +66,8 @@ func Login(config helpers.Config) error {
 	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatalf("Got error %s", err.Error())
+		log.Printf("Got error %s", err.Error())
+		return err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -111,7 +121,8 @@ func Logout(config helpers.Config) error {
 	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatalf("Got error %s", err.Error())
+		log.Printf("Got error %s", err.Error())
+		return err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -126,20 +137,58 @@ func Logout(config helpers.Config) error {
 	return nil
 }
 
-func GetData(date time.Time, config helpers.Config) ([]*ElectricConsumption, error) {
+func GetMeters(config helpers.Config) ([]Meter, error) {
+
+	log.Println("Getting meter list")
+
+	// get data
+	url := "https://www.torontohydro.com/my-account/my-usage?p_p_id=thmoduletou&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=fetchMeterList&p_p_cacheability=cacheLevelPage"
+	if config.TorontoHydro.Mock {
+		url = "http://localhost:9999/my-usage?p_p_resource_id=fetchMeterList"
+	}
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		log.Printf("Got error %s", err.Error())
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error getting data from Toronto Hydro [%s]!\n", err.Error())
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		log.Printf("Calling Toronto Hydro failed with status code [%d]!\n", resp.StatusCode)
+		return nil, errors.New("Error")
+	}
+
+	// extract body
+	defer resp.Body.Close()
+	var meters []Meter
+	err = json.NewDecoder(resp.Body).Decode(&meters)
+	if err != nil {
+		log.Printf("Error processing Toronto Water account details response [%s]!\n", err.Error())
+		return nil, err
+	}
+
+	return meters, nil
+}
+
+func GetData(meter Meter, date time.Time, config helpers.Config) ([]*ElectricConsumption, error) {
 
 	dateString := date.Format("2006-01-02")
-	log.Println("Getting consumption data for " + dateString)
+	log.Println("Getting consumption data for meter " + meter.MeterNumber + " and date " + dateString)
 
 	// get data
 	url := "https://www.torontohydro.com/my-account/my-usage?p_p_id=thmoduletou&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=getHourlyChartData&p_p_cacheability=cacheLevelPage"
 	if config.TorontoHydro.Mock {
-		url = "http://localhost:9999/my-usage"
+		url = "http://localhost:9999/my-usage?p_p_resource_id=getHourlyChartData"
 	}
-	body := "spIDs=" + config.TorontoHydro.Id + "&meterNum=" + config.TorontoHydro.Meter + "&date=" + dateString
+	body := "spIDs=" + meter.Id + "&meterNum=" + meter.MeterNumber + "&date=" + dateString
 	req, err := http.NewRequest("POST", url, bytes.NewBufferString(body))
 	if err != nil {
-		log.Fatalf("Got error %s", err.Error())
+		log.Printf("Got error %s", err.Error())
+		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
 	resp, err := client.Do(req)
@@ -177,71 +226,65 @@ func GetData(date time.Time, config helpers.Config) ([]*ElectricConsumption, err
 	}
 
 	// cleanup
-	loc, err := time.LoadLocation("America/Toronto")
-	if err != nil {
-		log.Printf("Error getting current time location [%s]!\n", err.Error())
-		return nil, err
-	}
-
 	for _, consumption := range consumptions {
-		dateTime := getDateTime(consumption.TimeTemp, date, loc)
+		dateTime := getDateTime(consumption.TimeTemp, date)
 		consumption.Time = dateTime
 	}
 
 	return consumptions, nil
 }
 
-func getDateTime(value string, date time.Time, location *time.Location) time.Time {
+func getDateTime(value string, date time.Time) time.Time {
 	// could not figure out how to do this better...
 	switch {
 	case value == "12  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 	case value == "1  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 1, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 1, 0, 0, 0, date.Location())
 	case value == "2  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 2, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 2, 0, 0, 0, date.Location())
 	case value == "3  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 3, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 3, 0, 0, 0, date.Location())
 	case value == "4  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 4, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 4, 0, 0, 0, date.Location())
 	case value == "5  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 5, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 5, 0, 0, 0, date.Location())
 	case value == "6  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 6, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 6, 0, 0, 0, date.Location())
 	case value == "7  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 7, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 7, 0, 0, 0, date.Location())
 	case value == "8  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 8, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 8, 0, 0, 0, date.Location())
 	case value == "9  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 9, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 9, 0, 0, 0, date.Location())
 	case value == "10  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 10, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 10, 0, 0, 0, date.Location())
 	case value == "11  a.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 11, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 11, 0, 0, 0, date.Location())
 	case value == "12  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 12, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 12, 0, 0, 0, date.Location())
 	case value == "1  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 13, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 13, 0, 0, 0, date.Location())
 	case value == "2  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 14, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 14, 0, 0, 0, date.Location())
 	case value == "3  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 15, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 15, 0, 0, 0, date.Location())
 	case value == "4  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 16, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 16, 0, 0, 0, date.Location())
 	case value == "5  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 17, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 17, 0, 0, 0, date.Location())
 	case value == "6  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 18, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 18, 0, 0, 0, date.Location())
 	case value == "7  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 19, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 19, 0, 0, 0, date.Location())
 	case value == "8  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 20, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 20, 0, 0, 0, date.Location())
 	case value == "9  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 21, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 21, 0, 0, 0, date.Location())
 	case value == "10  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 22, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 22, 0, 0, 0, date.Location())
 	case value == "11  p.m.":
-		return time.Date(date.Year(), date.Month(), date.Day(), 23, 0, 0, 0, location)
+		return time.Date(date.Year(), date.Month(), date.Day(), 23, 0, 0, 0, date.Location())
 	default:
 		return time.Now()
 	}

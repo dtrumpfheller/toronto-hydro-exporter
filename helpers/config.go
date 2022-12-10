@@ -25,8 +25,6 @@ type InfluxDB struct {
 type TorontoHydro struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
-	Meter    string `yaml:"meter"`
-	Id       string `yaml:"id"`
 	Mock     bool   `yaml:"mock"`
 }
 

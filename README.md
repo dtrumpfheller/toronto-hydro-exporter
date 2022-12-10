@@ -14,9 +14,7 @@ influxDB:
 torontoHydro:
   username: <username>
   password: <password>
-  meter: 1234567890
-  id: 1234567890
-sleepDuration: 60
+sleepDuration: 720
 lookDaysInPast: 1
 ```
 
@@ -26,12 +24,10 @@ lookDaysInPast: 1
 | influxDB.token           | auth token to access InfluxDB2 server                                       |
 | influxDB.organization    | organization of InfluxDB2 server                                            |
 | influxDB.bucket          | name of bucket                                                              |
-| torontoHydro.username    | used to login into Toronto Hydro                                            |
-| torontoHydro.password    | used to login into Toronto Hydro                                            |
-| torontoHydro.meter       | electric meter number                                                       |
-| torontoHydro.id          | id can be retrieved from the 'fetchMeterList' http call made by the browser |
+| torontoHydro.username    | used to log into Toronto Hydro                                              |
+| torontoHydro.password    | used to log into Toronto Hydro                                              |
 | sleepDuration            | sleep time between exports in minutes, zero means run only once             |
-| lookDaysInPast           | how many days of the past should be considered; min = 1, max = 2 years      |
+| lookDaysInPast           | how many days of the past should be considered                              |
 
 ## Docker
 The exporter was written with the intent of running it in docker. You can also run it directly if this is preferred.

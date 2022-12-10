@@ -3,6 +3,7 @@ package torontohydro
 import (
 	"log"
 	"net/http"
+	"time"
 )
 
 func Mock() {
@@ -37,7 +38,23 @@ func logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func myusage(w http.ResponseWriter, r *http.Request) {
-	data := `# Your hourly usage (2000-01-01)
+	resource := r.URL.Query().Get("p_p_resource_id")
+	if resource == "fetchMeterList" {
+		data := `[
+			{
+				"endDate": "` + time.Now().Format("2006-01-02") + `",
+				"meterNum": "1234",
+				"id": "4321",
+				"startDate": "` + time.Now().AddDate(0, 0, -1).Format("2006-01-02") + `"
+			}
+		]`
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(data))
+		return
+
+	} else if resource == "getHourlyChartData" {
+		data := `# Your hourly usage (2000-01-01)
 Time,Usage off-peak (kWh),Usage mid-peak (kWh),Usage on-peak (kWh),Usage low-tier (kWh),Usage high-tier (kWh),Cost off-peak ($),Cost mid-peak ($),Cost on-peak ($),Cost low-tier ($),Cost high-tier ($)
 12  a.m.,,,,0.21,0.00,,,,0.02,0.00
 1  a.m.,,,,0.22,0.00,,,,0.02,0.00
@@ -63,8 +80,11 @@ Time,Usage off-peak (kWh),Usage mid-peak (kWh),Usage on-peak (kWh),Usage low-tie
 9  p.m.,,,,0.32,0.00,,,,0.03,0.00
 10  p.m.,,,,0.24,0.00,,,,0.02,0.00
 11  p.m.,,,,0.31,0.00,,,,0.03,0.00`
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/text")
+		w.Write([]byte(data))
+		return
+	}
 
-	w.Header().Set("Content-Type", "application/text")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(data))
+	w.WriteHeader(http.StatusBadRequest)
 }

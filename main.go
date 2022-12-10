@@ -45,36 +45,47 @@ func exportMetrics() {
 	start := time.Now()
 
 	err := torontohydro.Login(config)
-	if err == nil {
-		date := time.Now().AddDate(0, 0, -config.LookDaysInPast)
-		yesterday := time.Now().AddDate(0, 0, -1)
+	if err != nil {
+		return
+	}
+
+	meters, err := torontohydro.GetMeters(config)
+	if err != nil {
+		return
+	}
+
+	for _, meter := range meters {
+		endDate, _ := time.ParseInLocation("2006-01-02", meter.EndDate, start.Location())
+		startDate, _ := time.ParseInLocation("2006-01-02", meter.StartDate, start.Location())
+
+		date := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location()).AddDate(0, 0, -config.LookDaysInPast)
+		if date.Before(startDate) {
+			date = startDate
+		}
 
 		// 1. get data
 		consumptions := list.New()
 
-		// for all days until and including yesterday
-		for ok := true; ok; ok = yesterday.After(date) {
-			data, err := torontohydro.GetData(date, config)
+		// for all days until endDate (excluding endDate as it never has values)
+		for ok := endDate.After(date); ok; ok = endDate.After(date) {
+			data, err := torontohydro.GetData(meter, date, config)
 			if err == nil {
 				for _, consumption := range data {
 					consumptions.PushBack(consumption)
 				}
 			}
 			date = date.AddDate(0, 0, 1)
-
-			// sleep a bit to not floot any http endpoints
-			time.Sleep(500 * time.Millisecond)
 		}
-
-		torontohydro.Logout(config)
 
 		// 2. export data
 		if consumptions.Len() > 0 {
-			influxdb.Export(consumptions, config)
+			influxdb.Export(meter, consumptions, config)
 		} else {
 			log.Println("No data gathered, skipping export to influxDB")
 		}
 	}
+
+	torontohydro.Logout(config)
 
 	log.Printf("Finished in %s\n", time.Since(start))
 }
