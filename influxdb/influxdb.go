@@ -63,14 +63,22 @@ func Export(meter torontohydro.Meter, consumptions *list.List, config helpers.Co
 				SetTime(consumption.Time)
 			addField("UsageHighTier", consumption.UsageHighTier, point)
 			addField("UsageLowTier", consumption.UsageLowTier, point)
-			addField("UsageOnPeak", consumption.UsageOnPeak, point)
-			addField("UsageMidPeak", consumption.UsageMidPeak, point)
-			addField("UsageOffPeak", consumption.UsageOffPeak, point)
+			addField("UsageTOUOnPeak", consumption.UsageTOUOnPeak, point)
+			addField("UsageTOUMidPeak", consumption.UsageTOUMidPeak, point)
+			addField("UsageTOUOffPeak", consumption.UsageTOUOffPeak, point)
+			addField("UsageULOOvernight", consumption.UsageULOOvernight, point)
+			addField("UsageULOOffPeal", consumption.UsageULOOffPeal, point)
+			addField("UsageULOMidPeak", consumption.UsageULOMidPeak, point)
+			addField("UsageULOOnPeak", consumption.UsageULOOnPeak, point)
 			addField("CostHighTier", consumption.CostHighTier, point)
 			addField("CostLowTier", consumption.CostLowTier, point)
-			addField("CostOnPeak", consumption.CostOnPeak, point)
-			addField("CostMidPeak", consumption.CostMidPeak, point)
-			addField("CostOffPeak", consumption.CostOffPeak, point)
+			addField("CostTOUOnPeak", consumption.CostTOUOnPeak, point)
+			addField("CostTOUMidPeak", consumption.CostTOUMidPeak, point)
+			addField("CostTOUOffPeak", consumption.CostTOUOffPeak, point)
+			addField("CostULOOvernight", consumption.CostULOOvernight, point)
+			addField("CostULOOffPeal", consumption.CostULOOffPeal, point)
+			addField("CostULOMidPeak", consumption.CostULOMidPeak, point)
+			addField("CostULOOnPeak", consumption.CostULOOnPeak, point)
 			writeAPI.WritePoint(point)
 		}
 
@@ -94,12 +102,20 @@ func addField(name string, value float32, point *write.Point) {
 func hasData(consumption *torontohydro.ElectricConsumption) bool {
 	return consumption.UsageHighTier > 0.0 ||
 		consumption.UsageLowTier > 0.0 ||
-		consumption.UsageOnPeak > 0.0 ||
-		consumption.UsageMidPeak > 0.0 ||
-		consumption.UsageOffPeak > 0.0 ||
+		consumption.UsageTOUOnPeak > 0.0 ||
+		consumption.UsageTOUMidPeak > 0.0 ||
+		consumption.UsageTOUOffPeak > 0.0 ||
+		consumption.UsageULOOvernight > 0.0 ||
+		consumption.UsageULOOffPeal > 0.0 ||
+		consumption.UsageULOMidPeak > 0.0 ||
+		consumption.UsageULOOnPeak > 0.0 ||
 		consumption.CostHighTier > 0.0 ||
 		consumption.CostLowTier > 0.0 ||
-		consumption.CostOnPeak > 0.0 ||
-		consumption.CostMidPeak > 0.0 ||
-		consumption.CostOffPeak > 0.0
+		consumption.CostTOUOnPeak > 0.0 ||
+		consumption.CostTOUMidPeak > 0.0 ||
+		consumption.CostTOUOffPeak > 0.0 ||
+		consumption.CostULOOvernight > 0.0 ||
+		consumption.CostULOOffPeal > 0.0 ||
+		consumption.CostULOMidPeak > 0.0 ||
+		consumption.CostULOOnPeak > 0.0
 }

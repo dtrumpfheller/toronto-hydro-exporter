@@ -22,18 +22,26 @@ type DateTime struct {
 }
 
 type ElectricConsumption struct {
-	TimeTemp      string    `csv:"Time"`
-	UsageOffPeak  float32   `csv:"Usage off-peak (kWh)"`
-	UsageMidPeak  float32   `csv:"Usage mid-peak (kWh)"`
-	UsageOnPeak   float32   `csv:"Usage on-peak (kWh)"`
-	UsageLowTier  float32   `csv:"Usage low-tier (kWh)"`
-	UsageHighTier float32   `csv:"Usage high-tier (kWh)"`
-	CostOffPeak   float32   `csv:"Cost off-peak ($)"`
-	CostMidPeak   float32   `csv:"Cost mid-peak ($)"`
-	CostOnPeak    float32   `csv:"Cost on-peak ($)"`
-	CostLowTier   float32   `csv:"Cost low-tier ($)"`
-	CostHighTier  float32   `csv:"Cost high-tier ($)"`
-	Time          time.Time `csv:"-"`
+	TimeTemp          string    `csv:"Time"`
+	UsageTOUOffPeak   float32   `csv:"Usage TOU off-peak (kWh)"`
+	UsageTOUMidPeak   float32   `csv:"Usage TOU mid-peak (kWh)"`
+	UsageTOUOnPeak    float32   `csv:"Usage TOU on-peak (kWh)"`
+	UsageLowTier      float32   `csv:"Usage tier 1 (kWh)"`
+	UsageHighTier     float32   `csv:"Usage tier 2 (kWh)"`
+	UsageULOOvernight float32   `csv:"Usage ULO overnight (kWh)"`
+	UsageULOOffPeal   float32   `csv:"Usage ULO off-peak (kWh)"`
+	UsageULOMidPeak   float32   `csv:"Usage ULO mid-peak (kWh)"`
+	UsageULOOnPeak    float32   `csv:"Usage ULO on-peak (kWh)"`
+	CostTOUOffPeak    float32   `csv:"Cost TOU off-peak ($)"`
+	CostTOUMidPeak    float32   `csv:"Cost TOU mid-peak ($)"`
+	CostTOUOnPeak     float32   `csv:"Cost TOU on-peak ($)"`
+	CostLowTier       float32   `csv:"Cost tier 1 ($)"`
+	CostHighTier      float32   `csv:"Cost tier 2 ($)"`
+	CostULOOvernight  float32   `csv:"Cost ULO overnight ($)"`
+	CostULOOffPeal    float32   `csv:"Cost ULO off-peak ($)"`
+	CostULOMidPeak    float32   `csv:"Cost ULO mid-peak ($)"`
+	CostULOOnPeak     float32   `csv:"Cost ULO on-peak ($)"`
+	Time              time.Time `csv:"-"`
 }
 
 type Meter struct {
@@ -237,55 +245,56 @@ func GetData(meter Meter, date time.Time, config helpers.Config) ([]*ElectricCon
 func getDateTime(value string, date time.Time) time.Time {
 	// could not figure out how to do this better...
 	switch {
-	case value == "12  a.m.":
+	case value == "12 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-	case value == "1  a.m.":
+	case value == "1 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 1, 0, 0, 0, date.Location())
-	case value == "2  a.m.":
+	case value == "2 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 2, 0, 0, 0, date.Location())
-	case value == "3  a.m.":
+	case value == "3 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 3, 0, 0, 0, date.Location())
-	case value == "4  a.m.":
+	case value == "4 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 4, 0, 0, 0, date.Location())
-	case value == "5  a.m.":
+	case value == "5 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 5, 0, 0, 0, date.Location())
-	case value == "6  a.m.":
+	case value == "6 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 6, 0, 0, 0, date.Location())
-	case value == "7  a.m.":
+	case value == "7 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 7, 0, 0, 0, date.Location())
-	case value == "8  a.m.":
+	case value == "8 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 8, 0, 0, 0, date.Location())
-	case value == "9  a.m.":
+	case value == "9 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 9, 0, 0, 0, date.Location())
-	case value == "10  a.m.":
+	case value == "10 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 10, 0, 0, 0, date.Location())
-	case value == "11  a.m.":
+	case value == "11 a.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 11, 0, 0, 0, date.Location())
-	case value == "12  p.m.":
+	case value == "12 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 12, 0, 0, 0, date.Location())
-	case value == "1  p.m.":
+	case value == "1 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 13, 0, 0, 0, date.Location())
-	case value == "2  p.m.":
+	case value == "2 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 14, 0, 0, 0, date.Location())
-	case value == "3  p.m.":
+	case value == "3 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 15, 0, 0, 0, date.Location())
-	case value == "4  p.m.":
+	case value == "4 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 16, 0, 0, 0, date.Location())
-	case value == "5  p.m.":
+	case value == "5 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 17, 0, 0, 0, date.Location())
-	case value == "6  p.m.":
+	case value == "6 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 18, 0, 0, 0, date.Location())
-	case value == "7  p.m.":
+	case value == "7 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 19, 0, 0, 0, date.Location())
-	case value == "8  p.m.":
+	case value == "8 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 20, 0, 0, 0, date.Location())
-	case value == "9  p.m.":
+	case value == "9 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 21, 0, 0, 0, date.Location())
-	case value == "10  p.m.":
+	case value == "10 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 22, 0, 0, 0, date.Location())
-	case value == "11  p.m.":
+	case value == "11 p.m.":
 		return time.Date(date.Year(), date.Month(), date.Day(), 23, 0, 0, 0, date.Location())
 	default:
+		log.Printf("Error determining date [%s]!\n", value)
 		return time.Now()
 	}
 }
